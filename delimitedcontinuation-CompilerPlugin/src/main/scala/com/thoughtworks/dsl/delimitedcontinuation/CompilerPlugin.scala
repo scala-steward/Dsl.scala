@@ -39,7 +39,7 @@ final class CompilerPlugin(override val global: Global) extends Plugin {
       val Seq(typedCpsTree) = tree.tpe.annotations.collect {
         case annotation if annotation.matches(resetSymbol) =>
           val cpsTree = resetAttrs(attachment(identity))
-//          reporter.info(tree.pos, s"Translating to continuation-passing style: $cpsTree", true)
+          reporter.info(tree.pos, s"Translating to continuation-passing style: $cpsTree", true)
           deact {
             typer.context.withMode(ContextMode.ReTyping) {
               typer.typed(cpsTree, Mode.EXPRmode)
@@ -197,6 +197,16 @@ final class CompilerPlugin(override val global: Global) extends Plugin {
             }}
             }
             """
+          case LabelDef(name, params, rhs) =>
+            assert(params.isEmpty)
+            assert(tree.tpe =:= definitions.UnitTpe)
+
+            // FIXME: Should perform CPS tranformation for calls to LabelDef
+            q"""
+            ${treeCopy.DefDef(tree, NoMods, name, Nil, Nil :: Nil, TypeTree(), cpsAttachment(rhs)(continue))}
+            $name()
+            """
+
         }
       }
       def checkResetAttachment: Type = {
