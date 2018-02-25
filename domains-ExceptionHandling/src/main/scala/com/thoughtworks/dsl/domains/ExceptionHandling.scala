@@ -2,6 +2,7 @@ package com.thoughtworks.dsl.domains
 
 import com.thoughtworks.dsl.Dsl
 
+import scala.util.Try
 import scala.util.control.Exception.Catcher
 import scala.util.control.NonFatal
 

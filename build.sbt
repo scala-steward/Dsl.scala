@@ -16,6 +16,10 @@ lazy val `instructions-ScalazBind` = project.dependsOn(Dsl, `instructions-Shift`
 
 lazy val `instructions-CatsFlatMap` = project.dependsOn(Dsl, `instructions-Shift` % Test, `instructions-Yield` % Test)
 
+lazy val `domains-Raii` = project.dependsOn(Dsl)
+
+lazy val `instructions-Arm` = project.dependsOn(`domains-Raii`)
+
 organization in ThisBuild := "com.thoughtworks.dsl"
 
 for {
@@ -26,6 +30,8 @@ for {
     `instructions-ScalazBind`,
     `instructions-Yield`,
     `domains-ExceptionHandling`,
+    `domains-Raii`,
+    `instructions-Arm`,
     CompilerPlugin,
     annotations
   )
