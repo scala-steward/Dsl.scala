@@ -19,7 +19,7 @@ object Fork {
       isTraversableOnce: That <:< TraversableOnce[ThatElement],
       canBuildFrom: CanBuildFrom[Nothing, ThatElement, That],
       hangDsl: Dsl[Hang[Unit], Domain, Unit],
-      catchDsl: Dsl[com.thoughtworks.dsl.instructions.Catch[Domain], Domain, Domain => Domain]
+      catchDsl: Dsl[Catch[Domain], Domain, Unit]
   ): Dsl[Fork[ThisElement], (That => Domain) => Domain, ThisElement] =
     new Dsl[Fork[ThisElement], (That => Domain) => Domain, ThisElement] {
       def interpret(fork: Fork[ThisElement],

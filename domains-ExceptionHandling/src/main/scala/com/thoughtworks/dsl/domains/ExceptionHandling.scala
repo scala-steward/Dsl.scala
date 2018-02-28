@@ -3,8 +3,6 @@ package com.thoughtworks.dsl.domains
 import com.thoughtworks.dsl.Dsl
 import com.thoughtworks.dsl.instructions.Catch
 
-import scala.util.Try
-import scala.util.control.Exception.Catcher
 import scala.util.control.NonFatal
 
 /** The state for DSL in exception-handling domain.
@@ -15,45 +13,37 @@ trait ExceptionHandling[OtherDomain] extends ((Throwable => OtherDomain) => Othe
 
 object ExceptionHandling {
 
-  implicit def catchDsl[OtherDomain]: Dsl[Catch[ExceptionHandling[OtherDomain]],
-                                          ExceptionHandling[OtherDomain],
-                                          ExceptionHandling[OtherDomain] => ExceptionHandling[OtherDomain]] = {
-    new Dsl[Catch[ExceptionHandling[OtherDomain]],
-            ExceptionHandling[OtherDomain],
-            ExceptionHandling[OtherDomain] => ExceptionHandling[OtherDomain]] {
-      def interpret(
-          instruction: Catch[ExceptionHandling[OtherDomain]],
-          continuation: (
-              ExceptionHandling[OtherDomain] => ExceptionHandling[OtherDomain]) => ExceptionHandling[OtherDomain])
-        : ExceptionHandling[OtherDomain] = {
-
+  implicit def catchDsl[OtherDomain]
+    : Dsl[Catch[ExceptionHandling[OtherDomain]], ExceptionHandling[OtherDomain], Unit] = {
+    new Dsl[Catch[ExceptionHandling[OtherDomain]], ExceptionHandling[OtherDomain], Unit] {
+      def interpret(instruction: Catch[ExceptionHandling[OtherDomain]],
+                    block: Unit => ExceptionHandling[OtherDomain]): ExceptionHandling[OtherDomain] = {
+        val Catch(failureHandler) = instruction
         new ExceptionHandling[OtherDomain] {
-          def apply(failureHandler: Throwable => OtherDomain): OtherDomain = {
-            def handleRethrow(e: Throwable): OtherDomain = {
+          def apply(rethrowHandler: Throwable => OtherDomain): OtherDomain = {
+            def composedFailureHandler(e: Throwable): OtherDomain = {
               locally {
                 try {
-                  instruction.onFailure(e)
+                  failureHandler(e)
                 } catch {
                   case NonFatal(rethrown) =>
-                    return failureHandler(rethrown)
+                    return rethrowHandler(rethrown)
                 }
-              }.apply(failureHandler)
-
+              }(rethrowHandler)
             }
-
             locally {
               try {
-                continuation { domain =>
-                  ExceptionHandling.success(domain.apply(failureHandler))
-                }
+                block(())
               } catch {
-                case NonFatal(e) => return handleRethrow(e)
+                case NonFatal(e) =>
+                  return composedFailureHandler(e)
               }
-            }.apply(handleRethrow)
+            }.apply(composedFailureHandler)
           }
-        }
 
+        }
       }
+
     }
   }
 

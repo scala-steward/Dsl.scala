@@ -283,13 +283,62 @@ final class CompilerPlugin(override val global: Global) extends Plugin {
             // This CaseDef tree contains some bang notations, and will be translated by enclosing Try or Match tree, not here
             EmptyTree
           case Try(block, catches, finalizer) =>
+//            def tryCatch(continue: Tree => Tree): Tree = {
+//              if (catches.isEmpty) {
+//                cpsAttachment(block)(continue)
+//              } else {
+//                q"""
+//                _root_.com.thoughtworks.dsl.instructions.Catch {
+//                case ..${{
+//                  catches.map { caseDef =>
+//                    atPos(caseDef.pos) {
+//                      treeCopy.CaseDef(
+//                        caseDef,
+//                        scalaBug8825Workaround(caseDef.pat),
+//                        caseDef.guard,
+//                        cpsAttachment(caseDef.body)(continue)
+//                      )
+//                    }
+//                  }
+//                }}
+//                }.cpsApply { _: _root_.scala.Unit =>
+//                  ${cpsAttachment(block)(continue)}
+//                }
+//                """
+//              }
+//            }
             val finalizerName = currentUnit.freshTermName("finalizer")
             val tryResultName = currentUnit.freshTermName("tryResult")
+
+//            q"""
+//            @${definitions.ScalaInlineClass} val $finalizerName = { ($tryResultName: _root_.scala.util.Try[$tpe]) => ${{
+//              if (finalizer.isEmpty) {
+//                ???
+//              } else {
+//
+//                cpsAttachment(finalizer) { finalizerValue =>
+//                  q"""
+//                  ..${notPure(finalizerValue)}
+//                  ${continue(q"$tryResultName.get")}
+//                """
+//                }
+//              }
+//            }}}
+//
+//            ${tryCatch { tryResult =>
+//              q"$finalizerName($tryResult)"
+//            }}
+//            """
+
+            val endTryName = currentUnit.freshTermName("endTry")
+
             val continueName = currentUnit.freshTermName("continue")
             val unhandledExceptionName = currentUnit.freshTermName("unhandledException")
-            val asCatcherName = currentUnit.freshTermName("asCatcher")
+//            val asCatcherName = currentUnit.freshTermName("asCatcher")
 
             q"""
+
+            
             @${definitions.ScalaInlineClass} val $finalizerName = { ($tryResultName: _root_.scala.util.Try[$tpe]) => ${{
               cpsAttachment(finalizer) { finalizerValue =>
                 q"""
@@ -316,11 +365,9 @@ final class CompilerPlugin(override val global: Global) extends Plugin {
             }}
               case $unhandledExceptionName: _root_.scala.Throwable =>
                 $finalizerName(_root_.scala.util.Failure($unhandledExceptionName))
-            }.cpsApply { $continueName: ${TypeTree()} => ${{
+            }.cpsApply { _: _root_.scala.Unit => ${{
               cpsAttachment(block) { blockValue =>
-                q"""
-                $continueName(${q"$finalizerName(_root_.scala.util.Success($blockValue))"})
-                """
+                q"$finalizerName(_root_.scala.util.Success($blockValue))"
               }
             }}}
             """
@@ -459,6 +506,8 @@ final class CompilerPlugin(override val global: Global) extends Plugin {
             treeCopy.Typed(tree, transform(expr), tpt)
           case Function(vparams, body) =>
             treeCopy.Function(tree, vparams, annotateAsReset(body))
+//          case tryTree: Try =>
+//            annotateAsReset(tryTree)
           case DefDef(mods, name, tparams, vparamss, tpt, rhs)
               if name != termNames.CONSTRUCTOR && name != termNames.MIXIN_CONSTRUCTOR && rhs.nonEmpty && !mods
                 .hasAnnotationNamed(definitions.TailrecClass.name) =>
@@ -529,6 +578,8 @@ final class CompilerPlugin(override val global: Global) extends Plugin {
                 termTree.updateAttachment(Reset)
               case _ =>
             }
+//          case _: Try =>
+//            tree.updateAttachment(Reset)
           case _ =>
         }
       }

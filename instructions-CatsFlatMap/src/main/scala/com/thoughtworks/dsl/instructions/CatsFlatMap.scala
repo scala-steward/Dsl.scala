@@ -17,26 +17,25 @@ final case class CatsFlatMap[F[_], A](fa: F[A]) extends AnyVal with Instruction[
 
 object CatsFlatMap {
 
-  implicit def catsCatchDsl[F[_], A](implicit monadError: MonadError[F, Throwable]): Dsl[Catch[F[A]], F[A], F[A] => F[A]] =
-    new Dsl[Catch[F[A]], F[A], F[A] => F[A]] {
-      def interpret(instruction: Catch[F[A]], continuation: (F[A] => F[A]) => F[A]): F[A] = {
+  implicit def catsCatchDsl[F[_], A](implicit monadError: MonadError[F, Throwable]): Dsl[Catch[F[A]], F[A], Unit] =
+    new Dsl[Catch[F[A]], F[A], Unit] {
+      def interpret(instruction: Catch[F[A]], rest: Unit => F[A]): F[A] = {
+
         def exceptionHandler(e: Throwable): F[A] = {
           try {
-            instruction.onFailure(e)
+            instruction.failureHandler(e)
           } catch {
             case NonFatal(rethrown) =>
               monadError.raiseError(rethrown)
           }
         }
 
-        try {
-          continuation { fa: F[A] =>
-            monadError.handleErrorWith(fa)(exceptionHandler)
-          }
+        monadError.handleErrorWith(try {
+          rest(())
         } catch {
           case NonFatal(e) =>
-            exceptionHandler(e)
-        }
+            return exceptionHandler(e)
+        })(exceptionHandler)
       }
     }
 
