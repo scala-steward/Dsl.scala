@@ -23,33 +23,33 @@ object ExceptionHandling {
             ExceptionHandling[OtherDomain] => ExceptionHandling[OtherDomain]] {
       def interpret(
           instruction: Catch[ExceptionHandling[OtherDomain]],
-          continuation: (
+          block: (
               ExceptionHandling[OtherDomain] => ExceptionHandling[OtherDomain]) => ExceptionHandling[OtherDomain])
         : ExceptionHandling[OtherDomain] = {
 
         new ExceptionHandling[OtherDomain] {
-          def apply(failureHandler: Throwable => OtherDomain): OtherDomain = {
-            def handleRethrow(e: Throwable): OtherDomain = {
+          def apply(restFailureHandler: Throwable => OtherDomain): OtherDomain = {
+            def failureHandler(e: Throwable): OtherDomain = {
               locally {
                 try {
                   instruction.onFailure(e)
                 } catch {
                   case NonFatal(rethrown) =>
-                    return failureHandler(rethrown)
+                    return restFailureHandler(rethrown)
                 }
-              }.apply(failureHandler)
-
+              }.apply(restFailureHandler)
             }
 
             locally {
               try {
-                continuation { domain =>
-                  ExceptionHandling.success(domain.apply(failureHandler))
+                block { (blockResult: ExceptionHandling[OtherDomain]) =>
+                  ExceptionHandling.success(blockResult(failureHandler))
+//                  ExceptionHandling.success(blockResult(failureHandler))
                 }
               } catch {
-                case NonFatal(e) => return handleRethrow(e)
+                case NonFatal(e) => return restFailureHandler(e)
               }
-            }.apply(handleRethrow)
+            }.apply(restFailureHandler)
           }
         }
 

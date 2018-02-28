@@ -1,13 +1,75 @@
 package com.thoughtworks.dsl.domains
 
-import com.thoughtworks.dsl.instructions.Yield
+import com.thoughtworks.dsl.Dsl.reset
+import com.thoughtworks.dsl.instructions.{Catch, Shift, Yield}
 import org.scalatest.{FreeSpec, Matchers}
+
+import scala.collection.mutable.ArrayBuffer
 
 /**
   * @author 杨博 (Yang Bo)
   */
 final class ExceptionHandlingSpec extends FreeSpec with Matchers {
   type AsyncFunction[Domain, +A] = (A => Domain) => Domain
+  "manually call" - {
+    "Catch" in {
+      object MyException extends Exception
+
+      var logs = ArrayBuffer.empty[String]
+      def generator1: (Int => ExceptionHandling[Stream[String]]) => ExceptionHandling[Stream[String]] = { continue =>
+        !Catch[ExceptionHandling[Stream[String]]] {
+          case MyException =>
+            logs += "begin catch"
+            !Yield("catch")
+            logs += "end catch"
+
+            continue(43): @reset // FIX compile error when @reset is removed
+        }
+        logs += "begin last yield"
+        !Yield("last yield")
+        logs += "end last yield"
+
+        throw MyException
+
+        !Catch[ExceptionHandling[Stream[String]]] {
+          case MyException =>
+            logs += "begin catch"
+            !Yield("catch")
+            logs += "end catch"
+
+            ExceptionHandling.success(Stream.empty[String]): @reset // FIX compile error when @reset is removed
+        }
+
+        continue(42)
+      }
+      val result = generator1 { i =>
+        i should be(43)
+        ExceptionHandling.success(Stream.empty[String])
+      } { e =>
+        throw e
+      }
+
+      result.length
+
+      logs should be(ArrayBuffer("begin last yield", "end last yield", "begin catch", "end catch"))
+
+      result should be(Stream("last yield", "catch"))
+
+      def generator2: ExceptionHandling[Stream[String]] = {
+        !Shift(generator1) should be(43)
+        (throw MyException): ExceptionHandling[Stream[String]]
+      }
+
+      val x = generator2 { e =>
+        throw e
+      }
+
+      a[MyException.type] should be thrownBy generator2 { e =>
+        throw e
+      }.length
+
+    }
+  }
 
   "Given a continuation that throws an exception" - {
     object MyException extends Exception

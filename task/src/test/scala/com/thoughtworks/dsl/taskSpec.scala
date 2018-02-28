@@ -1,9 +1,10 @@
 package com.thoughtworks.dsl
 
 import com.thoughtworks.dsl.Dsl.reset
+import com.thoughtworks.dsl.domains.ExceptionHandling
 import org.scalatest.{Assertion, AsyncFreeSpec, Matchers}
-import task._
-import com.thoughtworks.dsl.instructions.{Each, Fork}
+import task.{Task, _}
+import com.thoughtworks.dsl.instructions.{Catch, Each, Fork}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -75,5 +76,38 @@ final class taskSpec extends AsyncFreeSpec with Matchers {
       logs += "uncaught MyException"
     }
     logs should be(ArrayBuffer("MyException", "uncaught MyException"))
+  }
+
+  "underscore" in {
+    val logs = ArrayBuffer.empty[String]
+
+    class MyException extends Exception {
+      logs += "MyException"
+    }
+
+    val task1: Task[String] = { continue =>
+      val x = !Catch[ExceptionHandling[Unit]] {
+        case _: MyException =>
+          logs += "catched"
+
+          continue("catched"): @reset // FIX compile error when @reset is removed
+      }
+
+      throw new MyException
+
+      ExceptionHandling.success(())
+    }
+
+    task1.apply { s =>
+      logs += s
+      throw new AssertionError()
+    } { e =>
+      println(logs)
+      e should be(a[MyException])
+      logs += "uncaught MyException"
+    }
+
+    logs should be(ArrayBuffer("MyException", "uncaught MyException"))
+
   }
 }
