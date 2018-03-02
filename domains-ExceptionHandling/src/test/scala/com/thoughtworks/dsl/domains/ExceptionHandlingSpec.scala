@@ -1,5 +1,6 @@
 package com.thoughtworks.dsl.domains
 
+import com.thoughtworks.dsl.Dsl.{Continuation, reset}
 import com.thoughtworks.dsl.instructions.{Catch, Scope, Shift, Yield}
 import org.scalatest.{FreeSpec, Matchers}
 
@@ -7,7 +8,6 @@ import org.scalatest.{FreeSpec, Matchers}
   * @author 杨博 (Yang Bo)
   */
 final class ExceptionHandlingSpec extends FreeSpec with Matchers {
-  type AsyncFunction[Domain, +A] = (A => Domain) => Domain
 
   "Given a continuation that throws an exception" - {
     object MyException extends Exception
@@ -39,7 +39,7 @@ final class ExceptionHandlingSpec extends FreeSpec with Matchers {
   }
   "try/catch" - {
     "yield and catch" in {
-      def continuation: AsyncFunction[ExceptionHandling[Stream[Int]], String] = _ {
+      def continuation: Continuation[ExceptionHandling[Stream[Int]], String] = _ {
         val tryResult = try {
           0 / 0
         } catch {
@@ -57,62 +57,61 @@ final class ExceptionHandlingSpec extends FreeSpec with Matchers {
       } should be(Seq(3))
     }
 
+    "simple catch" in {
 
-  "simple catch" in {
+      object MyException extends Exception
+      def generator: Continuation[ExceptionHandling[Stream[String]], Int] = { continue =>
+        !Yield("before catch")
 
-    object MyException extends Exception
-    def generator: (Int => ExceptionHandling[Stream[String]]) => ExceptionHandling[Stream[String]] = { continue =>
-      !Yield("before catch")
+        !Catch { e: Throwable =>
+          e should be(MyException)
+          !Yield("catch")
+          continue(42)
+        }
+        !Yield("after catch")
+        continue(43)
+      }
 
-      !Catch { e: Throwable =>
+      object MyException2 extends Exception
+
+      def generator2: ExceptionHandling[Stream[String]] = {
+
+        import ExceptionHandling._
+        val i = !Scope(generator)
+        !Yield(i.toString)
+        i should be(43)
+        ExceptionHandling.failure(MyException)
+      }
+
+      generator2 { e =>
         e should be(MyException)
-        !Yield("catch")
-        continue(42)
+
+        Stream("end")
+      } should be(Stream("before catch", "after catch", "43", "end"))
+    }
+
+    "issue 2" in {
+      def continuation: Continuation[ExceptionHandling[Stream[Int]], String] = { continue =>
+        !Yield(1)
+        try {} catch {
+          case e: ArithmeticException =>
+            !Yield(2)
+        }
+        !Yield(3)
+        ExceptionHandling.failure(new ArithmeticException)
       }
-      !Yield("after catch")
-      continue(43)
+
+      continuation { result: String =>
+        ExceptionHandling.failure(new AssertionError())
+      }.apply { e =>
+        e should be(a[ArithmeticException])
+        Stream.empty
+      } should be(Stream(1, 3))
+
     }
-
-    object MyException2 extends Exception
-
-    def generator2: ExceptionHandling[Stream[String]] = {
-
-      import ExceptionHandling._
-      val i = !Scope(generator)
-      !Yield(i.toString)
-      i should be(43)
-      ExceptionHandling.failure(MyException)
-    }
-
-    generator2 { e =>
-      e should be(MyException)
-
-      Stream("end")
-    } should be(Stream("before catch", "after catch", "43", "end"))
-  }
-
-  "issue 2" in {
-    def continuation: AsyncFunction[ExceptionHandling[Stream[Int]], String] = { continue =>
-      !Yield(1)
-      try {} catch {
-        case e: ArithmeticException =>
-          !Yield(2)
-      }
-      !Yield(3)
-      ExceptionHandling.failure(new ArithmeticException)
-    }
-
-    continuation { result: String =>
-      ExceptionHandling.failure(new AssertionError())
-    }.apply { e =>
-      e should be(a[ArithmeticException])
-      Stream.empty
-    } should be(Stream(1, 3))
-
-  }
 
     "empty try" in {
-      def continuation: AsyncFunction[ExceptionHandling[Stream[Int]], String] = _ {
+      def continuation: Continuation[ExceptionHandling[Stream[Int]], String] = _ {
         val tryResult = try {
           0 / 0
           !Yield(-1)
@@ -127,7 +126,7 @@ final class ExceptionHandlingSpec extends FreeSpec with Matchers {
       } should be(Seq())
     }
     "rethrow" in {
-      def continuation: AsyncFunction[ExceptionHandling[Stream[Int]], String] = _ {
+      def continuation: Continuation[ExceptionHandling[Stream[Int]], String] = _ {
         val tryResult = try {
           0 / 0
         } catch {
@@ -146,7 +145,7 @@ final class ExceptionHandlingSpec extends FreeSpec with Matchers {
     }
 
     "complex" in {
-      def continuation: AsyncFunction[ExceptionHandling[Stream[Int]], String] = _ {
+      def continuation: Continuation[ExceptionHandling[Stream[Int]], String] = _ {
         !Yield(0)
         val tryResult = try {
           !Yield(1)

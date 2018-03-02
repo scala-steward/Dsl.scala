@@ -1,6 +1,6 @@
 package com.thoughtworks.dsl
 
-import com.thoughtworks.dsl.Dsl.{Trampoline1, reset}
+import com.thoughtworks.dsl.Dsl.{Continuation, Trampoline1, reset}
 import com.thoughtworks.dsl.domains.ExceptionHandling
 import com.thoughtworks.dsl.instructions.{Each, Shift}
 
@@ -15,7 +15,7 @@ import scala.util.control.NonFatal
   */
 object task {
 
-  type Task[+A] = (A => ExceptionHandling[Unit]) => ExceptionHandling[Unit]
+  type Task[+A] = Continuation[ExceptionHandling[Unit], A]
 
   implicit final class TaskOps[+A](task: Task[A]) {
     def onComplete(successHandler: A => Unit, failureHandler: Throwable => Unit): Unit = {

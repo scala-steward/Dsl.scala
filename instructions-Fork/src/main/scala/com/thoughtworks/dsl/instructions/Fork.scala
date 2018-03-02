@@ -4,7 +4,7 @@ import java.io.{PrintStream, PrintWriter}
 import java.util.concurrent.atomic.AtomicInteger
 
 import com.thoughtworks.dsl.Dsl
-import com.thoughtworks.dsl.Dsl.Instruction
+import com.thoughtworks.dsl.Dsl.{Continuation, Instruction}
 
 import scala.collection.{GenTraversableOnce, mutable}
 import scala.collection.generic.CanBuildFrom
@@ -61,10 +61,10 @@ object Fork {
       hangDsl: Dsl[Hang[Unit], Domain, Unit],
       scopeDsl: Dsl[Scope[Domain, Try[Unit]], Domain, Try[Unit]],
       catchDsl: Dsl[Catch[Domain], Domain, Unit]
-  ): Dsl[Fork[ThisElement], (That => Domain) => Domain, ThisElement] =
-    new Dsl[Fork[ThisElement], (That => Domain) => Domain, ThisElement] {
+  ): Dsl[Fork[ThisElement], Continuation[Domain, That], ThisElement] =
+    new Dsl[Fork[ThisElement], Continuation[Domain, That], ThisElement] {
       def interpret(fork: Fork[ThisElement],
-                    mapper: ThisElement => (That => Domain) => Domain): (That => Domain) => Domain = _ {
+                    mapper: ThisElement => Continuation[Domain, That]): Continuation[Domain, That] = _ {
         val builder: mutable.Builder[ThatElement, That] = canBuildFrom()
         val exceptionBuilder = Set.newBuilder[Throwable]
         val counter = new AtomicInteger(1)

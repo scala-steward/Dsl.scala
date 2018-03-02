@@ -34,11 +34,11 @@ object Dsl {
 
   implicit def continuationDsl[Instruction, Domain, FinalResult, InstructionValue](
       implicit restDsl: Dsl[Instruction, Domain, InstructionValue])
-    : Dsl[Instruction, (FinalResult => Domain) => Domain, InstructionValue] = {
-    new Dsl[Instruction, (FinalResult => Domain) => Domain, InstructionValue] {
+    : Dsl[Instruction, Continuation[Domain, FinalResult], InstructionValue] = {
+    new Dsl[Instruction, Continuation[Domain, FinalResult], InstructionValue] {
       def interpret(
           instruction: Instruction,
-          handler: InstructionValue => (FinalResult => Domain) => Domain): (FinalResult => Domain) => Domain = {
+          handler: InstructionValue => Continuation[Domain, FinalResult]): Continuation[Domain, FinalResult] = {
         (continue: FinalResult => Domain) =>
           restDsl.interpret(instruction, { a =>
             handler(a)(continue)
@@ -55,6 +55,8 @@ object Dsl {
 
   /** An annotation to mark a method is a shift control operator. */
   final class shift extends StaticAnnotation
+
+  type Continuation[Domain, +Value] = ((Value => Domain @reset) => Domain @reset) @reset
 
   def apply[Instruction, Domain, Value](
       implicit typeClass: Dsl[Instruction, Domain, Value]): Dsl[Instruction, Domain, Value] =

@@ -1,6 +1,7 @@
 package com.thoughtworks.dsl.domains
 
 import com.thoughtworks.dsl.Dsl
+import com.thoughtworks.dsl.Dsl.reset
 import com.thoughtworks.dsl.instructions.Shift.StackSafeShiftDsl
 import com.thoughtworks.dsl.instructions._
 
@@ -45,11 +46,11 @@ object ExceptionHandling {
       }
     }
 
-  def success[Domain](finalResult: Domain) = new ExceptionHandling[Domain] {
+  def success[Domain](finalResult: Domain): ExceptionHandling[Domain] @reset = new ExceptionHandling[Domain] {
     def apply(failureHandler: Throwable => Domain): Domain = finalResult
   }
 
-  def failure[Domain](e: Throwable) = new ExceptionHandling[Domain] {
+  def failure[Domain](e: Throwable): ExceptionHandling[Domain] @reset = new ExceptionHandling[Domain] {
     def apply(failureHandler: Throwable => Domain): Domain = failureHandler(e)
   }
 

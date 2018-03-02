@@ -1,5 +1,6 @@
 package com.thoughtworks.dsl.instructions
 
+import com.thoughtworks.dsl.Dsl.Continuation
 import com.thoughtworks.dsl.domains.ExceptionHandling
 import org.scalatest.{FreeSpec, Matchers}
 
@@ -10,7 +11,7 @@ class ArmSpec extends FreeSpec with Matchers {
 
   "AutoCloseable" - {
 
-    type Scope[A] = (A => A) => A
+    type Scope[A] = Continuation[A, A]
     def noop[A](a: A): Scope[A] = _(a)
 
     "scope" - {

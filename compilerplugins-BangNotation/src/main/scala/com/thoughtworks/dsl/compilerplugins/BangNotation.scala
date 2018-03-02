@@ -69,16 +69,13 @@ final class BangNotation(override val global: Global) extends Plugin {
 
     override def adaptAnnotations(tree0: Tree, typer: Typer, mode: Mode, pt: Type): Tree = {
       val tree = super.adaptAnnotations(tree0, typer, mode, pt)
-      val Seq(typedCpsTree) = tree.tpe.annotations.collect {
-        case annotation if annotation.matches(resetAnnotationSymbol) =>
-          val Some(attachment) = tree.attachments.get[CpsAttachment]
-          val cpsTree = scalaBug8825Workaround(resetAttrs(attachment(identity)))
-//          reporter.info(tree.pos, s"Translating to continuation-passing style: $cpsTree", true)
-          deactAnalyzerPlugins {
-            typer.context.withMode(ContextMode.ReTyping) {
-              typer.typed(cpsTree, Mode.EXPRmode)
-            }
-          }
+      val Some(attachment) = tree.attachments.get[CpsAttachment]
+      val cpsTree = scalaBug8825Workaround(resetAttrs(attachment(identity)))
+      //          reporter.info(tree.pos, s"Translating to continuation-passing style: $cpsTree", true)
+      val typedCpsTree = deactAnalyzerPlugins {
+        typer.context.withMode(ContextMode.ReTyping) {
+          typer.typed(cpsTree, Mode.EXPRmode)
+        }
       }
       typedCpsTree.modifyType(_.filterAnnotations(!_.matches(resetAnnotationSymbol)))
     }
