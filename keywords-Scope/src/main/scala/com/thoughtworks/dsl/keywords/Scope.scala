@@ -44,6 +44,8 @@ private[keywords] trait LowPriorityScope0 extends LowPriorityScope1 { this: Scop
 
 object Scope extends LowPriorityScope0 {
 
+  trait ScopeDsl[InnerDomain, OuterDomain, Value] extends Dsl[Scope[InnerDomain, Value], OuterDomain, Value]
+
   implicit def implicitScope[Domain, Value](continuation: Domain !! Value): Scope[Domain, Value] =
     Scope[Domain, Value](continuation)
 
