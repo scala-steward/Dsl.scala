@@ -76,6 +76,10 @@ object Dsl extends LowPriorityDsl0 {
   /** An annotation to mark a method is a shift control operator. */
   final class shift extends StaticAnnotation
 
+// TODO:
+//  /** An annotation to mark a method is a block control operator. */
+//  final class transformer extends StaticAnnotation
+
   def apply[Keyword, Domain, Value](implicit typeClass: Dsl[Keyword, Domain, Value]): Dsl[Keyword, Domain, Value] =
     typeClass
 
@@ -99,6 +103,32 @@ object Dsl extends LowPriorityDsl0 {
     final def cpsApply[Domain](handler: Value => Domain)(implicit dsl: Dsl[Self, Domain, Value]): Domain = {
       dsl.interpret(this, handler)
     }
+
+  }
+
+  trait BlockKeyword[Self, InnerValue, OuterValue] extends Any { this: Self =>
+    // TODO: Implement the transform for BlockKeyword in the future
+//    @transformer
+//    @compileTimeOnly(
+//      """This method requires the compiler plugin: `addCompilerPlugin("com.thoughtworks.dsl" %% "compilerplugin" % "latest.release")` and must only be called inside a code block annotated as `@reset`.""")
+//    def apply(innerValue: InnerValue): OuterValue
+
+    @inline
+    final def cpsBlock[OuterDomain](handler: OuterValue => OuterDomain)(
+        implicit blockDsl: BlockDsl[Self, InnerValue, OuterValue, OuterDomain])
+      : (blockDsl.InnerDomain !! InnerValue) => OuterDomain = {
+      blockDsl.interpret(this: Self, _, handler)
+    }
+
+  }
+
+  trait BlockDsl[KeywordTransformer, InnerValue, OuterValue, OuterDomain] {
+
+    type InnerDomain
+
+    def interpret(keywordTransformer: KeywordTransformer,
+                  block: InnerDomain !! InnerValue,
+                  handler: OuterValue => OuterDomain): OuterDomain
 
   }
 
